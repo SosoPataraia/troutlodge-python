@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% block content %}
+    <h2 class="mb-4">Hatchery Dashboard</h2>
+
+    <div class="card shadow mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">Update Product Availability</h5>
+        </div>
+        <div class="card-body">
+            <form method="post" action="{% url 'update_availability' %}">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label class="form-label">Product</label>
+                    <select name="product" class="form-select">
+                        {% for product in products %}
+                            <option value="{{ product.id }}">{{ product }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Week Number</label>
+                    <input type="number" name="week_number" class="form-control" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Available Quantity</label>
+                    <input type="number" name="quantity" class="form-control" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Expected Ship Date</label>
+                    <input type="date" name="ship_date" class="form-control" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Update Availability</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="card shadow">
+        <div class="card-body">
+            <a href="/admin/" class="btn btn-secondary">Advanced Management</a>
+        </div>
+    </div>
+{% endblock %}

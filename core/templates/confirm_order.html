@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+{% block content %}
+    <h2 class="mb-4">Confirm Order #{{ order.id }}</h2>
+    <div class="card shadow">
+        <div class="card-body">
+            <p><strong>Customer:</strong> {{ order.customer.username }}</p>
+            <p><strong>Product:</strong> {{ order.availability.product }}</p>
+            <p><strong>Quantity:</strong> {{ order.quantity }}</p>
+            <p><strong>Week:</strong> {{ order.availability.week_number }}</p>
+            <form method="post">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label class="form-label">Notes (optional)</label>
+                    <textarea name="notes" class="form-control" rows="3"></textarea>
+                </div>
+                <button type="submit" class="btn btn-success">Confirm Order</button>
+            </form>
+        </div>
+    </div>
+{% endblock %}

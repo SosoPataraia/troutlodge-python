@@ -1,0 +1,32 @@
+# Django
+*.log
+*.pot
+*.pyc
+__pycache__/
+db.sqlite3
+media/
+
+# Environment
+.env
+venv/
+.env/
+
+# IDE
+.vscode/
+.idea/
+
+# Static files
+staticfiles/
+
+# Database
+*.sqlite3
+*.db
+
+# OS generated
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
