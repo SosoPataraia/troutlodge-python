@@ -87,7 +87,7 @@ DEFAULT_FROM_EMAIL = 'orders@troutlodge.com'
 BASE_URL = 'http://your-domain.com'
 
 # Authentication
-LOGIN_REDIRECT_URL = '/'
+LOGIN_REDIRECT_URL = 'dashboard'
 LOGIN_URL = 'login'
 LOGOUT_REDIRECT_URL = 'login'
 

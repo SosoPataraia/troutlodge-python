@@ -1,4 +1,5 @@
 # core/api_views.py
+from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, generics
@@ -16,6 +17,8 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.styles import getSampleStyleSheet
 from io import BytesIO
 from django.core.files import File
+from rest_framework.exceptions import PermissionDenied
+
 
 class UserListView(generics.ListAPIView):
     queryset = User.objects.filter(role='customer')
@@ -27,10 +30,15 @@ class ProductListCreateView(generics.ListCreateAPIView):
     serializer_class = ProductSerializer
     permission_classes = [IsSales | IsHatchery | IsCustomer]
 
+    def create(self, request, *args, **kwargs):
+        if request.user.role not in ['sales', 'hatchery']:
+            raise PermissionDenied("Only sales and hatchery staff can create products.")
+        return super().create(request, *args, **kwargs)
+
 class AvailabilityListCreateView(generics.ListCreateAPIView):
     queryset = Availability.objects.all()
     serializer_class = AvailabilitySerializer
-    permission_classes = []
+    permission_classes = [IsAuthenticatedOrReadOnly]
 
     def get_queryset(self):
         year = self.request.query_params.get('year', 2025)

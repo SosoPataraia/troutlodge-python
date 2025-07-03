@@ -1,6 +1,9 @@
 # core/permissions.py
 from rest_framework import permissions
 
+from core.models import Order
+
+
 class IsSales(permissions.BasePermission):
     def has_permission(self, request, view):
         return request.user.is_authenticated and request.user.role == 'sales'

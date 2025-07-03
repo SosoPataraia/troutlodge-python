@@ -1,5 +1,5 @@
 # core/models.py
-from django.db import models
+from django.db import models, transaction
 from django.contrib.auth.models import AbstractUser
 from django.db.models import F
 from django_fsm import FSMField, transition
@@ -124,8 +124,27 @@ class Order(models.Model):
 
     @transition(field=status, source='confirmed', target='shipped')
     def ship(self):
-        self.availability.available_quantity = F('available_quantity') - self.quantity
-        self.availability.save()
+        with transaction.atomic():
+            # Lock the availability record for update
+            availability = Availability.objects.select_for_update().get(pk=self.availability.pk)
+
+            # Validate stock
+            if availability.available_quantity < self.quantity:
+                raise ValueError("Insufficient available quantity")
+
+            # Update inventory
+            availability.available_quantity -= self.quantity
+            availability.save(update_fields=['available_quantity'])
+
+            # Update order status
+            self.save(update_fields=['status'])
+
+            # Log event
+            CustomerEvent.objects.create(
+                user=self.customer,
+                event_type='ORDER_SHIPPED',
+                order=self
+            )
 
     @transition(field=status, source=['pending', 'approved', 'down_paid'], target='cancelled')
     def cancel(self):
