@@ -5,6 +5,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponseForbidden, FileResponse
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.utils import timezone
+from collections import defaultdict
 from django.core.mail import send_mail
 from django.conf import settings
 from django.contrib.auth import login, logout
@@ -183,40 +184,48 @@ def ship_order(request, order_id):
     return render(request, 'ship_order.html', {'order': order})
 
 
-@login_required
 def availability_view(request):
-    """View to display availability table for all authenticated users."""
-    year = int(request.GET.get('year', 2025))  # Default to 2025
+    year = int(request.GET.get('year', 2025))
     availabilities = Availability.objects.filter(year=year).order_by('week_number')
 
-    # Generate week start dates for display
-    availability_data = []
+    # Get all unique weeks for the year (1 to 52, assuming all weeks are possible)
+    weeks = range(1, 53)  # Assuming 52 weeks in a year
+
+    # Get all unique products
+    products = Product.objects.all().order_by('type', 'ploidy', 'diameter')
+
+    # Create pivot data: week -> product_id -> quantity (default 0 if not available)
+    pivot_data = defaultdict(lambda: defaultdict(int))
     for avail in availabilities:
-        # Calculate week start date for display
-        week_start_date = datetime.datetime.strptime(f"{avail.year}-{avail.week_number}-1", "%Y-%W-%w").date()
-        availability_data.append({
-            'product': avail.product,
-            'week_number': avail.week_number,
-            'week_start_date': week_start_date,
-            'available_quantity': avail.available_quantity,
-        })
+        pivot_data[avail.week_number][avail.product.id] = avail.available_quantity
+
+    # Create table data: list of [week, quantity1, quantity2, ...] for each week
+    table_data = []
+    for week in weeks:
+        row = [week]
+        for product in products:
+            quantity = pivot_data[week].get(product.id, 0)
+            row.append(quantity)
+        table_data.append(row)
 
     return render(request, 'availability_view.html', {
-        'availabilities': availability_data,
         'year': year,
+        'weeks': weeks,
+        'products': products,
+        'table_data': table_data,
     })
 
 
 @hatchery_required
 def hatchery_dashboard(request):
     products = Product.objects.all()
-    year = int(request.GET.get('year', 2025))  # Default to 2025
+    year = int(request.GET.get('year', 2025))
     availabilities = Availability.objects.filter(year=year).order_by('week_number')
-
     # Generate week start dates for display
     availability_data = []
     for avail in availabilities:
-        week_start_date = datetime.datetime.strptime(f"{avail.year}-{avail.week_number}-1", "%Y-%W-%w").date()
+        # Use datetime.strptime instead of datetime.datetime.strptime
+        week_start_date = datetime.strptime(f"{avail.year}-{avail.week_number}-1", "%Y-%W-%w").date()
         availability_data.append({
             'product': avail.product,
             'week_number': avail.week_number,
