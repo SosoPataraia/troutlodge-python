@@ -1,42 +1,77 @@
+<!-- core/templates/hatchery_dashboard.html -->
 {% extends 'base.html' %}
 {% block content %}
-    <h2 class="mb-4">Hatchery Dashboard</h2>
+    <h2 class="mb-4">Hatchery Dashboard - {{ year }}</h2>
 
     <div class="card shadow mb-4">
         <div class="card-header bg-primary text-white">
-            <h5 class="mb-0">Update Product Availability</h5>
+            <h5 class="mb-0">Available Batches</h5>
         </div>
         <div class="card-body">
-            <form method="post" action="{% url 'update_availability' %}">
-                {% csrf_token %}
-                <div class="mb-3">
-                    <label class="form-label">Product</label>
-                    <select name="product" class="form-select">
-                        {% for product in products %}
-                            <option value="{{ product.id }}">{{ product }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Week Number</label>
-                    <input type="number" name="week_number" class="form-control" required>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Available Quantity</label>
-                    <input type="number" name="quantity" class="form-control" required>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Expected Ship Date</label>
-                    <input type="date" name="ship_date" class="form-control" required>
-                </div>
-                <button type="submit" class="btn btn-primary">Update Availability</button>
+            <form method="get" class="mb-3">
+                <label for="year">Select Year:</label>
+                <select name="year" id="year" onchange="this.form.submit()">
+                    {% for y in "2020 2021 2022 2023 2024 2025 2026 2027 2028 2029 2030" %}
+                        <option value="{{ y }}" {% if y|add:0 == year %}selected{% endif %}>{{ y }}</option>
+                    {% endfor %}
+                </select>
             </form>
+            {% if availabilities %}
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th>Week Number</th>
+                            <th>Week Start Date</th>
+                            <th>Available Quantity</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for avail in availabilities %}
+                            <tr>
+                                <td>{{ avail.product }}</td>
+                                <td>{{ avail.week_number }}</td>
+                                <td>{{ avail.week_start_date|date:"Y-m-d" }}</td>
+                                <td>{{ avail.available_quantity }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p class="text-muted">No available batches for {{ year }}.</p>
+            {% endif %}
         </div>
     </div>
 
     <div class="card shadow">
+        <div class="card-header bg-info text-white">
+            <h5 class="mb-0">Update Availability</h5>
+        </div>
         <div class="card-body">
-            <a href="/admin/" class="btn btn-secondary">Advanced Management</a>
+            <form method="post">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label for="{{ form.product.id_for_label }}" class="form-label">Product</label>
+                    {{ form.product }}
+                </div>
+                <div class="mb-3">
+                    <label for="{{ form.year.id_for_label }}" class="form-label">Year</label>
+                    {{ form.year }}
+                </div>
+                <div class="mb-3">
+                    <label for="{{ form.week_number.id_for_label }}" class="form-label">Week Number</label>
+                    {{ form.week_number }}
+                </div>
+                <div class="mb-3">
+                    <label for="{{ form.available_quantity.id_for_label }}" class="form-label">Quantity</label>
+                    {{ form.available_quantity }}
+                </div>
+                <div class="mb-3">
+                    <label for="{{ form.expected_ship_date.id_for_label }}" class="form-label">Expected Ship Date</label>
+                    {{ form.expected_ship_date }}
+                </div>
+                <button type="submit" class="btn btn-primary">Update Availability</button>
+            </form>
         </div>
     </div>
 {% endblock %}

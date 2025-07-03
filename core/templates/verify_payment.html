@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% block content %}
+    <h2 class="mb-4">Verify {{ payment_type|title }} for Order #{{ order.id }}</h2>
+    <div class="card shadow">
+        <div class="card-body">
+            <p><strong>Customer:</strong> {{ order.customer.username }}</p>
+            <p><strong>Amount:</strong> 
+                {% if payment_type == 'down payment' %}
+                    ${{ order.downpayment_amount|floatformat:2 }}
+                {% else %}
+                    ${{ order.calculate_total|add:order.downpayment_amount|floatformat:2 }}
+                {% endif %}
+            </p>
+            
+            {% if payment_type == 'down payment' and order.downpayment_proof %}
+                <p><strong>Proof:</strong> 
+                    <a href="{{ order.downpayment_proof.url }}" target="_blank">View Proof</a>
+                </p>
+            {% elif order.fullpayment_proof %}
+                <p><strong>Proof:</strong> 
+                    <a href="{{ order.fullpayment_proof.url }}" target="_blank">View Proof</a>
+                </p>
+            {% endif %}
+            
+            <form method="post">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-success">Verify Payment</button>
+                <a href="{% url 'sales_dashboard' %}" class="btn btn-secondary">Cancel</a>
+            </form>
+        </div>
+    </div>
+{% endblock %}

@@ -36,6 +36,8 @@
             {% endif %}
         </div>
     </div>
+
+    <!-- Updated Your Orders Section -->
     <div class="card shadow">
         <div class="card-header bg-primary text-white">
             <h5 class="mb-0">Your Orders</h5>
@@ -58,10 +60,30 @@
                                 <td>{{ order.id }}</td>
                                 <td>{{ order.availability.product }}</td>
                                 <td>{{ order.quantity }}</td>
-                                <td>{{ order.status|capfirst }}</td>
                                 <td>
-                                    {% if order.status == 'confirmed' %}
-                                        <a href="{% url 'view_invoice' order.id %}" class="btn btn-sm btn-info">View Invoice</a>
+                                    {{ order.status|capfirst }}
+                                    {% if order.status == 'approved' %}
+                                        <br><small>Down payment: ${{ order.downpayment_amount|floatformat:2 }}</small>
+                                    {% elif order.status == 'down_paid' %}
+                                        <br><small>Balance: ${{ order.calculate_total|add:order.downpayment_amount|floatformat:2 }}</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if order.status == 'approved' %}
+                                        <a href="{% url 'upload_down_payment' order.id %}"
+                                           class="btn btn-sm btn-warning">Pay Down</a>
+                                        <a href="{{ order.downpayment_invoice.url }}"
+                                           class="btn btn-sm btn-info">Invoice</a>
+                                    {% elif order.status == 'down_paid' %}
+                                        <a href="{% url 'upload_full_payment' order.id %}"
+                                           class="btn btn-sm btn-primary">Pay Full</a>
+                                        <a href="{{ order.invoice.url }}"
+                                           class="btn btn-sm btn-info">Invoice</a>
+                                    {% elif order.status == 'confirmed' %}
+                                        <a href="{% url 'view_invoice' order.id %}"
+                                           class="btn btn-sm btn-info">View Invoice</a>
+                                    {% elif order.status == 'shipped' %}
+                                        <span class="badge bg-success">Shipped</span>
                                     {% endif %}
                                 </td>
                             </tr>

@@ -1,8 +1,12 @@
-{% extends 'base.html' %}
-{% block content %}
-<div class="alert alert-danger">
-    <h2>Error</h2>
+<!-- templates/error.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Error</title>
+</head>
+<body>
+    <h1>Error</h1>
     <p>{{ message }}</p>
-    <a href="{% url 'dashboard' %}" class="btn btn-primary">Return to Dashboard</a>
-</div>
-{% endblock %}
+    <a href="{% url 'dashboard' %}">Back to Dashboard</a>
+</body>
+</html>
