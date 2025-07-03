@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% block content %}
+    <h2 class="mb-4">Upload {{ payment_type|title }} Proof</h2>
+    <div class="card shadow">
+        <div class="card-body">
+            <p><strong>Order #{{ order.id }}</strong></p>
+            <p><strong>Amount Due:</strong> 
+                {% if payment_type == 'down payment' %}
+                    ${{ order.downpayment_amount|floatformat:2 }}
+                {% else %}
+                    ${{ order.calculate_total|add:order.downpayment_amount|floatformat:2 }}
+                {% endif %}
+            </p>
+            <p><strong>Deadline:</strong> 
+                {% if payment_type == 'down payment' %}
+                    {{ order.downpayment_deadline|date:"Y-m-d" }}
+                {% else %}
+                    {{ order.fullpayment_deadline|date:"Y-m-d" }}
+                {% endif %}
+            </p>
+            
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                {{ form.as_p }}
+                <button type="submit" class="btn btn-primary">Upload Proof</button>
+                <a href="{% url 'customer_dashboard' %}" class="btn btn-secondary">Back to Dashboard</a>
+            </form>
+        </div>
+    </div>
+{% endblock %}

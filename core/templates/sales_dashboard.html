@@ -30,7 +30,7 @@
                                 <td>{{ order.availability.week_number }}</td>
                                 <td>{{ order.created_at|date:"Y-m-d" }}</td>
                                 <td>
-                                    <a href="{% url 'confirm_order' order.id %}" class="btn btn-sm btn-success me-2">Confirm</a>
+                                    <a href="{% url 'verify_full_payment' order.id %}" class="btn btn-sm btn-success me-2">Confirm</a>
                                     <a href="#" class="btn btn-sm btn-outline-danger">Reject</a>
                                 </td>
                             </tr>
@@ -79,6 +79,115 @@
                 </table>
             {% else %}
                 <p class="text-muted">No confirmed orders.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Approved Orders (Waiting for Down Payment) -->
+    <div class="card shadow mb-4">
+        <div class="card-header bg-warning text-white">
+            <h5 class="mb-0">Waiting for Down Payment</h5>
+        </div>
+        <div class="card-body">
+            {% if approved_orders %}
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Order ID</th>
+                            <th>Customer</th>
+                            <th>Down Payment</th>
+                            <th>Deadline</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for order in approved_orders %}
+                            <tr>
+                                <td>{{ order.id }}</td>
+                                <td>{{ order.customer.username }}</td>
+                                <td>${{ order.downpayment_amount|floatformat:2 }}</td>
+                                <td>{{ order.downpayment_deadline|date:"Y-m-d" }}</td>
+                                <td>
+                                    <a href="{% url 'verify_down_payment' order.id %}"
+                                       class="btn btn-sm btn-info">Verify</a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p class="text-muted">No orders waiting for down payment.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Down Payment Received (Waiting for Full Payment) -->
+    <div class="card shadow mb-4">
+        <div class="card-header bg-info text-white">
+            <h5 class="mb-0">Waiting for Full Payment</h5>
+        </div>
+        <div class="card-body">
+            {% if down_paid_orders %}
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Order ID</th>
+                            <th>Customer</th>
+                            <th>Balance Due</th>
+                            <th>Deadline</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for order in down_paid_orders %}
+                            <tr>
+                                <td>{{ order.id }}</td>
+                                <td>{{ order.customer.username }}</td>
+                                <td>${{ order.calculate_total|add:order.downpayment_amount|floatformat:2 }}</td>
+                                <td>{{ order.fullpayment_deadline|date:"Y-m-d" }}</td>
+                                <td>
+                                    <a href="{% url 'verify_full_payment' order.id %}"
+                                       class="btn btn-sm btn-info">Verify</a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p class="text-muted">No orders waiting for full payment.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Shipped Orders -->
+    <div class="card shadow">
+        <div class="card-header bg-success text-white">
+            <h5 class="mb-0">Recently Shipped Orders</h5>
+        </div>
+        <div class="card-body">
+            {% if shipped_orders %}
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Order ID</th>
+                            <th>Customer</th>
+                            <th>Product</th>
+                            <th>Ship Date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for order in shipped_orders %}
+                            <tr>
+                                <td>{{ order.id }}</td>
+                                <td>{{ order.customer.username }}</td>
+                                <td>{{ order.availability.product }}</td>
+                                <td>{{ order.confirmed_at|date:"Y-m-d" }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p class="text-muted">No shipped orders.</p>
             {% endif %}
         </div>
     </div>

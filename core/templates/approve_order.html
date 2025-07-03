@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% block content %}
+    <h2 class="mb-4">Approve Order #{{ order.id }}</h2>
+    <div class="card shadow">
+        <div class="card-body">
+            <p><strong>Customer:</strong> {{ order.customer.username }}</p>
+            <p><strong>Product:</strong> {{ order.availability.product }}</p>
+            <p><strong>Quantity:</strong> {{ order.quantity }}</p>
+            <p><strong>Week:</strong> {{ order.availability.week_number }}</p>
+            <p><strong>Total Amount:</strong> ${{ total|floatformat:2 }}</p>
+            <p><strong>Down Payment (15%):</strong> ${{ downpayment|floatformat:2 }}</p>
+            
+            <form method="post">
+                {% csrf_token %}
+                {{ form.as_p }}
+                <button type="submit" class="btn btn-success">Approve & Request Down Payment</button>
+                <a href="{% url 'dashboard' %}" class="btn btn-secondary">Cancel</a>
+            </form>
+        </div>
+    </div>
+{% endblock %}
