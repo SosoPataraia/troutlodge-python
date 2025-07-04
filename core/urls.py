@@ -32,6 +32,7 @@ urlpatterns = [
     path('verify_down_payment/<int:order_id>/', views.verify_down_payment, name='verify_down_payment'),
     path('verify_full_payment/<int:order_id>/', views.verify_full_payment, name='verify_full_payment'),
     path('ship_order/<int:order_id>/', views.ship_order, name='ship_order'),
+    path('order/downpayment/<int:order_id>/', views.view_downpayment_invoice, name='view_downpayment_invoice'),
 
     # Customer actions
     path('upload_down_payment/<int:order_id>/', views.upload_down_payment, name='upload_down_payment'),

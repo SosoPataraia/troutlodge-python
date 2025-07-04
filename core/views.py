@@ -1,5 +1,6 @@
 # core/views.py
 from datetime import datetime
+from decimal import Decimal
 
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponseForbidden, FileResponse
@@ -64,16 +65,12 @@ def dashboard(request):
 @sales_required
 def sales_dashboard(request):
     pending_orders = Order.objects.filter(status='pending')
-    approved_orders = Order.objects.filter(status='approved')
-    down_paid_orders = Order.objects.filter(status='down_paid')
     confirmed_orders = Order.objects.filter(status='confirmed').order_by('-confirmed_at')[:10]
     shipped_orders = Order.objects.filter(status='shipped')[:5]
     return render(request, 'sales_dashboard.html', {
         'pending_orders': pending_orders,
-        'approved_orders': approved_orders,
-        'down_paid_orders': down_paid_orders,
         'confirmed_orders': confirmed_orders,
-        'shipped_orders': shipped_orders
+        'shipped_orders': shipped_orders,
     })
 
 @sales_required
@@ -183,23 +180,18 @@ def ship_order(request, order_id):
         return redirect('sales_dashboard')
     return render(request, 'ship_order.html', {'order': order})
 
-
+@login_required
 def availability_view(request):
     year = int(request.GET.get('year', 2025))
     availabilities = Availability.objects.filter(year=year).order_by('week_number')
+    years = range(2020, 2031)  # List of years from 2020 to 2030
 
-    # Get all unique weeks for the year (1 to 52, assuming all weeks are possible)
-    weeks = range(1, 53)  # Assuming 52 weeks in a year
-
-    # Get all unique products
+    weeks = range(1, 53)
     products = Product.objects.all().order_by('type', 'ploidy', 'diameter')
-
-    # Create pivot data: week -> product_id -> quantity (default 0 if not available)
     pivot_data = defaultdict(lambda: defaultdict(int))
     for avail in availabilities:
         pivot_data[avail.week_number][avail.product.id] = avail.available_quantity
 
-    # Create table data: list of [week, quantity1, quantity2, ...] for each week
     table_data = []
     for week in weeks:
         row = [week]
@@ -210,42 +202,28 @@ def availability_view(request):
 
     return render(request, 'availability_view.html', {
         'year': year,
+        'years': years,
         'weeks': weeks,
         'products': products,
         'table_data': table_data,
     })
 
 
+@login_required
 @hatchery_required
 def hatchery_dashboard(request):
-    products = Product.objects.all()
     year = int(request.GET.get('year', 2025))
     availabilities = Availability.objects.filter(year=year).order_by('week_number')
-    # Generate week start dates for display
-    availability_data = []
-    for avail in availabilities:
-        # Use datetime.strptime instead of datetime.datetime.strptime
-        week_start_date = datetime.strptime(f"{avail.year}-{avail.week_number}-1", "%Y-%W-%w").date()
-        availability_data.append({
-            'product': avail.product,
-            'week_number': avail.week_number,
-            'week_start_date': week_start_date,
-            'available_quantity': avail.available_quantity,
-        })
-
-    if request.method == 'POST':
-        form = AvailabilityForm(request.POST)
-        if form.is_valid():
-            form.save()
-            return redirect('hatchery_dashboard')
-    else:
-        form = AvailabilityForm()
-
+    years = range(2020, 2031)  # List of years from 2020 to 2030
+    form = AvailabilityForm(request.POST or None)
+    if request.method == 'POST' and form.is_valid():
+        availability = form.save()
+        return redirect('hatchery_dashboard')
     return render(request, 'hatchery_dashboard.html', {
-        'products': products,
-        'availabilities': availability_data,
-        'form': form,
+        'availabilities': availabilities,
         'year': year,
+        'years': years,
+        'form': form,
     })
 
 @hatchery_required
@@ -277,11 +255,15 @@ def update_availability(request):
 
 @customer_required
 def customer_dashboard(request):
+    reservations = Order.objects.filter(customer=request.user, status__in=['approved', 'down_paid'])
+    confirmed_orders = Order.objects.filter(customer=request.user, status='confirmed')
+    shipped_orders = Order.objects.filter(customer=request.user, status='shipped')
     available_batches = Availability.objects.filter(available_quantity__gt=0)
-    customer_orders = Order.objects.filter(customer=request.user)
     return render(request, 'customer_dashboard.html', {
         'available_batches': available_batches,
-        'orders': customer_orders
+        'reservations': reservations,
+        'confirmed_orders': confirmed_orders,
+        'shipped_orders': shipped_orders,
     })
 
 @customer_required
@@ -342,6 +324,59 @@ def view_invoice(request, order_id):
         content_type='application/pdf'
     )
 
+def generate_provisional_downpayment_invoice(order):
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter)
+    elements = []
+    styles = getSampleStyleSheet()
+    elements.append(Paragraph("Troutlodge Provisional Down Payment Invoice", styles['Title']))
+    invoice_data = [
+        ['Invoice Date:', timezone.now().strftime("%Y-%m-%d")],
+        ['Invoice Number:', f"DP-{order.id}"],
+        ['Order Number:', str(order.id)],
+        ['Due Date:', (timezone.now() + timezone.timedelta(days=3)).strftime("%Y-%m-%d")],
+    ]
+    customer_info = [
+        ['Customer:', order.customer.username],
+        ['Company:', order.customer.company or 'N/A'],
+        ['VAT Number:', order.customer.vat_number or 'N/A'],
+        ['Address:', order.customer.address or 'N/A'],
+    ]
+    product = order.availability.product
+    subtotal = order.quantity * product.price
+    downpayment = subtotal * Decimal('0.15')
+    order_details = [
+        ['Product Type:', product.type],
+        ['Ploidy:', product.ploidy],
+        ['Diameter:', f"{product.diameter}mm"],
+        ['Week Number:', str(order.availability.week_number)],
+        ['Quantity:', f"{order.quantity:,}"],
+        ['Unit Price:', f"${product.price:.2f}"],
+        ['Subtotal:', f"${subtotal:.2f}"],
+        ['Down Payment (15%):', f"${downpayment:.2f}"],
+    ]
+    elements.append(Paragraph("Note: Transport cost will be added upon approval.", styles['Normal']))
+    invoice_table = Table(invoice_data, colWidths=[100, 300])
+    customer_table = Table(customer_info, colWidths=[100, 300])
+    order_table = Table(order_details, colWidths=[150, 250])
+    order_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('BACKGROUND', (0, -2), (-1, -1), colors.lightblue),
+    ]))
+    elements.append(Paragraph("Invoice Details", styles['Heading3']))
+    elements.append(invoice_table)
+    elements.append(Spacer(1, 12))
+    elements.append(Paragraph("Customer Information", styles['Heading3']))
+    elements.append(customer_table)
+    elements.append(Spacer(1, 12))
+    elements.append(Paragraph("Order Details", styles['Heading3']))
+    elements.append(order_table)
+    doc.build(elements)
+    buffer.seek(0)
+    return File(buffer, name=f"provisional_downpayment_invoice_{order.id}.pdf")
+
 @login_required
 def request_order(request):
     if request.method == 'POST':
@@ -351,16 +386,24 @@ def request_order(request):
             order.customer = request.user
             order.status = 'pending'
             order.save()
+            provisional_invoice = generate_provisional_downpayment_invoice(order)
+            order.downpayment_invoice.save(f"provisional_downpayment_invoice_{order.id}.pdf", provisional_invoice)
+            order.save()
             CustomerEvent.objects.create(
                 user=order.customer,
                 event_type='ORDER_CREATED',
                 order=order,
                 metadata={'quantity': order.quantity}
             )
-            return redirect('dashboard')
+            return redirect('view_downpayment_invoice', order_id=order.id)
     else:
         form = OrderRequestForm()
     return render(request, 'request_order.html', {'form': form})
+
+@login_required
+def view_downpayment_invoice(request, order_id):
+    order = get_object_or_404(Order, id=order_id, customer=request.user)
+    return render(request, 'view_downpayment_invoice.html', {'order': order})
 
 def register(request):
     if request.method == 'POST':

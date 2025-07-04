@@ -6,8 +6,8 @@
             <form method="get" class="mb-3">
                 <label for="year">Select Year:</label>
                 <select name="year" id="year" onchange="this.form.submit()">
-                    {% for y in "2020 2021 2022 2023 2024 2025 2026 2027 2028 2029 2030" %}
-                        <option value="{{ y }}" {% if y|add:0 == year %}selected{% endif %}>{{ y }}</option>
+                    {% for y in years %}
+                        <option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>
                     {% endfor %}
                 </select>
             </form>

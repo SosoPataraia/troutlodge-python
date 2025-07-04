@@ -1,4 +1,6 @@
 # core/models.py
+from datetime import datetime
+
 from django.db import models, transaction
 from django.contrib.auth.models import AbstractUser
 from django.db.models import F
@@ -52,7 +54,7 @@ class Availability(models.Model):
     year = models.IntegerField(default=2025)
     week_number = models.IntegerField()
     available_quantity = models.IntegerField()
-    expected_ship_date = models.DateField()
+    #expected_ship_date = models.DateField()
 
     def __str__(self):
         return f"{self.product} - {self.year} Week {self.week_number}"
@@ -100,14 +102,9 @@ class Order(models.Model):
     downpayment_transaction_id = models.CharField(max_length=50, blank=True, null=True)
     fullpayment_transaction_id = models.CharField(max_length=50, blank=True, null=True)
 
-    def calculate_total(self):
-        return self.quantity * self.availability.product.price + self.transport_cost
-
-    def calculate_downpayment(self):
-        return self.calculate_total() * Decimal('0.15')
-
-    def __str__(self):
-        return f"Order {self.id} by {self.customer}"
+    def calculate_ship_date(self):
+        # Calculate Monday of the given week
+        return datetime.strptime(f"{self.availability.year}-W{self.availability.week_number}-1", "%Y-W%W-%w").date()
 
     @transition(field=status, source='pending', target='approved')
     def approve(self):
@@ -116,7 +113,16 @@ class Order(models.Model):
 
     @transition(field=status, source='approved', target='down_paid')
     def confirm_downpayment(self):
-        self.fullpayment_deadline = timezone.now() + timezone.timedelta(days=14)
+        ship_date = self.calculate_ship_date()
+        self.fullpayment_deadline = ship_date - timezone.timedelta(days=14)
+        if self.fullpayment_deadline < timezone.now():
+            self.fullpayment_deadline = timezone.now() + timezone.timedelta(days=1)
+        with transaction.atomic():
+            availability = Availability.objects.select_for_update().get(pk=self.availability.pk)
+            if availability.available_quantity < self.quantity:
+                raise ValueError("Insufficient available quantity")
+            availability.available_quantity -= self.quantity
+            availability.save(update_fields=['available_quantity'])
 
     @transition(field=status, source='down_paid', target='confirmed')
     def confirm_full_payment(self):
@@ -124,31 +130,14 @@ class Order(models.Model):
 
     @transition(field=status, source='confirmed', target='shipped')
     def ship(self):
-        with transaction.atomic():
-            # Lock the availability record for update
-            availability = Availability.objects.select_for_update().get(pk=self.availability.pk)
+        self.save(update_fields=['status'])
 
-            # Validate stock
-            if availability.available_quantity < self.quantity:
-                raise ValueError("Insufficient available quantity")
-
-            # Update inventory
-            availability.available_quantity -= self.quantity
-            availability.save(update_fields=['available_quantity'])
-
-            # Update order status
-            self.save(update_fields=['status'])
-
-            # Log event
-            CustomerEvent.objects.create(
-                user=self.customer,
-                event_type='ORDER_SHIPPED',
-                order=self
-            )
-
-    @transition(field=status, source=['pending', 'approved', 'down_paid'], target='cancelled')
+    @transition(field=status, source=['approved', 'down_paid'], target='cancelled')
     def cancel(self):
-        pass
+        if self.status == 'down_paid':
+            availability = self.availability
+            availability.available_quantity += self.quantity
+            availability.save(update_fields=['available_quantity'])
 
 class CustomerEvent(models.Model):
     EVENT_TYPES = [

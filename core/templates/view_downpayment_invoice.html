@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% block content %}
+    <h2 class="mb-4">Down Payment Invoice</h2>
+    <div class="card shadow">
+        <div class="card-body">
+            <h5>Order #{{ order.id }}</h5>
+            <p><strong>Product:</strong> {{ order.availability.product.type }} {{ order.availability.product.ploidy }}</p>
+            <p><strong>Week:</strong> {{ order.availability.week_number }} of {{ order.availability.year }}</p>
+            <p><strong>Quantity:</strong> {{ order.quantity }}</p>
+            <p><strong>Down Payment Amount:</strong> ${{ order.downpayment_amount|floatformat:2 }}</p>
+            <p><strong>Due Date:</strong> {{ order.downpayment_deadline|date:"Y-m-d" }}</p>
+            <div class="mb-3">
+                <a href="{{ order.downpayment_invoice.url }}" class="btn btn-info" target="_blank">View Invoice PDF</a>
+                <a href="{% url 'upload_down_payment' order.id %}" class="btn btn-warning">Pay</a>
+            </div>
+        </div>
+    </div>
+{% endblock %}
