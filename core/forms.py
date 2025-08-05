@@ -2,71 +2,100 @@ from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.core.exceptions import ValidationError
 from django.utils import timezone
-from .models import Order, Availability, User
+from .models import Order, Availability, User, Product
 from decimal import Decimal
 
 class AvailabilityForm(forms.ModelForm):
+    strain = forms.ChoiceField(choices=Product.TYPE_CHOICES)
+    ploidy = forms.ChoiceField(choices=Product.PLOIDY_CHOICES)
+    diameter = forms.ChoiceField(choices=Product.DIAMETER_CHOICES)
     year = forms.IntegerField(min_value=2020, max_value=2030, initial=2025)
     week_number = forms.IntegerField(min_value=1, max_value=52)
-    expected_ship_date = forms.DateField(widget=forms.DateInput(attrs={'type': 'date'}))
+    available_quantity = forms.IntegerField(min_value=0)
 
     class Meta:
         model = Availability
-        fields = ['product', 'year', 'week_number', 'available_quantity', 'expected_ship_date']
+        fields = ['year', 'week_number', 'available_quantity']
 
     def clean(self):
         cleaned_data = super().clean()
+        strain = cleaned_data.get('strain')
+        ploidy = cleaned_data.get('ploidy')
+        diameter = cleaned_data.get('diameter')
         year = cleaned_data.get('year')
         week_number = cleaned_data.get('week_number')
-        product = cleaned_data.get('product')
         quantity = cleaned_data.get('available_quantity')
 
-        # Validate quantity
+        if strain and ploidy and diameter and year and week_number:
+            product, created = Product.objects.get_or_create(
+                type=strain,
+                ploidy=ploidy,
+                diameter=diameter,
+                defaults={'price': 0}  # Adjust default price as needed
+            )
+            cleaned_data['product'] = product
+
+            try:
+                existing = Availability.objects.get(product=product, year=year, week_number=week_number)
+                self.instance = existing  # Set instance to update existing record
+            except Availability.DoesNotExist:
+                pass  # New record will be created
+        else:
+            raise ValidationError("All product details, year, and week number are required.")
+
         if quantity < 0:
             raise ValidationError("Available quantity cannot be negative.")
 
-        # Validate week number
-        if week_number < 1 or week_number > 52:
-            raise ValidationError("Week number must be between 1 and 52.")
-
-        # Check for existing availability
-        if self.instance.pk is None:  # New instance
-            if Availability.objects.filter(product=product, year=year, week_number=week_number).exists():
-                raise ValidationError("Availability for this product, year, and week already exists.")
-
         return cleaned_data
 
+    def save(self, commit=True):
+        availability = super().save(commit=False)
+        availability.product = self.cleaned_data['product']
+        if commit:
+            availability.save()
+        return availability
+
 class OrderRequestForm(forms.ModelForm):
+    strain = forms.ChoiceField(choices=Product.TYPE_CHOICES)
+    ploidy = forms.ChoiceField(choices=Product.PLOIDY_CHOICES)
+    year = forms.IntegerField(min_value=2020, max_value=2030, initial=2025)
+    week_number = forms.IntegerField(min_value=1, max_value=52)
+    quantity = forms.IntegerField(min_value=1)
+
     class Meta:
         model = Order
-        fields = ['availability', 'quantity']
-        widgets = {
-            'quantity': forms.NumberInput(attrs={'min': 20000, 'step': 10000})  # Minimum 20k, increments of 10k
-        }
+        fields = ['quantity']
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields['availability'].queryset = Availability.objects.filter(available_quantity__gt=0)
+    def clean(self):
+        cleaned_data = super().clean()
+        strain = cleaned_data.get('strain')
+        ploidy = cleaned_data.get('ploidy')
+        year = cleaned_data.get('year')
+        week_number = cleaned_data.get('week_number')
+        quantity = cleaned_data.get('quantity')
 
-    def clean_quantity(self):
-        quantity = self.cleaned_data['quantity']
-        availability = self.cleaned_data.get('availability')
+        if strain and ploidy and year and week_number:
+            # Find a product with any diameter (since diameter is not selected)
+            try:
+                product = Product.objects.filter(type=strain, ploidy=ploidy).first()
+                if not product:
+                    raise ValidationError("No product matches the selected strain and ploidy.")
+                availability = Availability.objects.get(
+                    product=product, year=year, week_number=week_number
+                )
+                if availability.available_quantity < quantity:
+                    raise ValidationError("Requested quantity exceeds available stock.")
+                cleaned_data['availability'] = availability
+            except Availability.DoesNotExist:
+                raise ValidationError("No availability for the selected product, year, and week.")
+        return cleaned_data
 
-        # Validate minimum order quantity (20,000)
-        if quantity < 20000:
-            raise ValidationError("Minimum order quantity is 20,000 eggs.")
-
-        # Validate quantity is multiple of 10,000
-        if quantity % 10000 != 0:
-            raise ValidationError("Quantity must be in multiples of 10,000 eggs.")
-
-        # Validate against available quantity
-        if availability and quantity > availability.available_quantity:
-            raise ValidationError(
-                f"Requested quantity exceeds available amount. Only {availability.available_quantity} available."
-            )
-
-        return quantity
+    def save(self, commit=True):
+        order = super().save(commit=False)
+        order.availability = self.cleaned_data['availability']
+        if commit:
+            order.save()
+        return order
 
 
 class CustomUserCreationForm(UserCreationForm):
@@ -75,17 +104,14 @@ class CustomUserCreationForm(UserCreationForm):
     phone = forms.CharField(max_length=20, required=False)
     vat_number = forms.CharField(max_length=50, required=False, label="VAT Number")
     address = forms.CharField(widget=forms.Textarea, required=False)
-    role = forms.ChoiceField(choices=User.ROLE_CHOICES)
 
     class Meta:
         model = User
-        fields = ('username', 'email', 'company', 'phone', 'vat_number', 'address', 'role', 'password1', 'password2')
+        fields = ('username', 'email', 'company', 'phone', 'vat_number', 'address', 'password1', 'password2')
 
     def save(self, commit=True):
         user = super().save(commit=False)
-        # Set default role to customer if not specified
-        if not user.role:
-            user.role = 'customer'
+        user.role = 'customer'  # Force role to 'customer'
         if commit:
             user.save()
         return user

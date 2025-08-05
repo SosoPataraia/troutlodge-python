@@ -1,98 +1,152 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
+{% block title %}Customer Dashboard{% endblock %}
 {% block content %}
-    <h2 class="mb-4">Customer Dashboard</h2>
-    <div class="card shadow mb-4">
-        <div class="card-header bg-primary text-white">
-            <h5 class="mb-0">Available Batches</h5>
-        </div>
-        <div class="card-body">
-            {% if available_batches %}
-                <table class="table table-hover">
-                    <thead>
-                        <tr>
-                            <th>Product</th>
-                            <th>Week</th>
-                            <th>Available Quantity</th>
-                            <th>Ship Date</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for batch in available_batches %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2"><i class="bi bi-speedometer2"></i> Customer Dashboard</h1>
+</div>
+
+<div class="row">
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-calendar-check"></i> Available Batches</h5>
+            </div>
+            <div class="card-body">
+                {% if available_batches %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Product</th>
+                                <th>Week</th>
+                                <th>Available</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for batch in available_batches %}
                             <tr>
                                 <td>{{ batch.product }}</td>
                                 <td>{{ batch.week_number }}</td>
                                 <td>{{ batch.available_quantity }}</td>
-                                <td>{{ batch.expected_ship_date }}</td>
                                 <td>
-                                    <a href="{% url 'request_order' %}" class="btn btn-sm btn-primary">Request Order</a>
+                                    <a href="{% url 'request_order' %}" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-cart-plus"></i> Order
+                                    </a>
                                 </td>
                             </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            {% else %}
-                <p class="text-muted">No available batches.</p>
-            {% endif %}
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i> No available batches at this time.
+                </div>
+                {% endif %}
+            </div>
         </div>
     </div>
 
-    <!-- Updated Your Orders Section -->
-    <div class="card shadow">
-        <div class="card-header bg-primary text-white">
-            <h5 class="mb-0">Your Orders</h5>
-        </div>
-        <div class="card-body">
-            {% if orders %}
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-list-check"></i> Your Orders</h5>
+            </div>
+            <div class="card-body">
+                <h6>Reservations</h6>
+                {% if reservations %}
                 <table class="table table-hover">
                     <thead>
                         <tr>
-                            <th>Order ID</th>
-                            <th>Product</th>
-                            <th>Quantity</th>
+                            <th>Order #</th>
                             <th>Status</th>
-                            <th>Action</th>
+                            <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for order in orders %}
-                            <tr>
-                                <td>{{ order.id }}</td>
-                                <td>{{ order.availability.product }}</td>
-                                <td>{{ order.quantity }}</td>
-                                <td>
-                                    {{ order.status|capfirst }}
-                                    {% if order.status == 'approved' %}
-                                        <br><small>Down payment: ${{ order.downpayment_amount|floatformat:2 }}</small>
-                                    {% elif order.status == 'down_paid' %}
-                                        <br><small>Balance: ${{ order.calculate_total|add:order.downpayment_amount|floatformat:2 }}</small>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if order.status == 'approved' %}
-                                        <a href="{% url 'upload_down_payment' order.id %}"
-                                           class="btn btn-sm btn-warning">Pay Down</a>
-                                        <a href="{{ order.downpayment_invoice.url }}"
-                                           class="btn btn-sm btn-info">Invoice</a>
-                                    {% elif order.status == 'down_paid' %}
-                                        <a href="{% url 'upload_full_payment' order.id %}"
-                                           class="btn btn-sm btn-primary">Pay Full</a>
-                                        <a href="{{ order.invoice.url }}"
-                                           class="btn btn-sm btn-info">Invoice</a>
-                                    {% elif order.status == 'confirmed' %}
-                                        <a href="{% url 'view_invoice' order.id %}"
-                                           class="btn btn-sm btn-info">View Invoice</a>
-                                    {% elif order.status == 'shipped' %}
-                                        <span class="badge bg-success">Shipped</span>
-                                    {% endif %}
-                                </td>
-                            </tr>
+                        {% for order in reservations %}
+                        <tr>
+                            <td>{{ order.id }}</td>
+                            <td>{{ order.get_status_display }}</td>
+                            <td>
+                                {% if order.status == 'approved' %}
+                                <a href="{% url 'upload_down_payment' order.id %}" class="btn btn-sm btn-warning">Upload Down Payment</a>
+                                {% elif order.status == 'down_paid' %}
+                                <a href="{% url 'upload_full_payment' order.id %}" class="btn btn-sm btn-warning">Upload Full Payment</a>
+                                {% endif %}
+                                <a href="{% url 'view_invoice' order.id %}" class="btn btn-sm btn-info">View Invoice</a>
+                            </td>
+                        </tr>
                         {% endfor %}
                     </tbody>
                 </table>
-            {% else %}
-                <p class="text-muted">No orders yet.</p>
-            {% endif %}
+                {% else %}
+                <p>No reservations.</p>
+                {% endif %}
+
+                <h6>Confirmed Orders</h6>
+                {% if confirmed_orders %}
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Order #</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for order in confirmed_orders %}
+                        <tr>
+                            <td>{{ order.id }}</td>
+                            <td>{{ order.get_status_display }}</td>
+                            <td>
+                                <a href="{% url 'view_invoice' order.id %}" class="btn btn-sm btn-info">View Invoice</a>
+                                {% if order.fullpayment_proof %}
+                                <a href="{{ order.fullpayment_proof.url }}" class="btn btn-sm btn-secondary">View Proof</a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p>No confirmed orders.</p>
+                {% endif %}
+
+                <h6>Shipped Orders</h6>
+                {% if shipped_orders %}
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Order #</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for order in shipped_orders %}
+                        <tr>
+                            <td>{{ order.id }}</td>
+                            <td>{{ order.get_status_display }}</td>
+                            <td>
+                                <a href="{% url 'view_invoice' order.id %}" class="btn btn-sm btn-info">View Invoice</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p>No shipped orders.</p>
+                {% endif %}
+
+                <div class="mt-3 text-end">
+                    <a href="{% url 'request_order' %}" class="btn btn-primary">
+                        <i class="bi bi-plus-circle"></i> New Order
+                    </a>
+                </div>
+            </div>
         </div>
     </div>
+</div>
 {% endblock %}

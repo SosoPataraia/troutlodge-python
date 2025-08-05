@@ -1,12 +1,21 @@
-<!-- templates/error.html -->
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Error</title>
-</head>
-<body>
-    <h1>Error</h1>
-    <p>{{ message }}</p>
-    <a href="{% url 'dashboard' %}">Back to Dashboard</a>
-</body>
-</html>
+{% extends 'base.html' %}
+{% block title %}Error{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6 col-lg-4">
+        <div class="card shadow">
+            <div class="card-header bg-danger text-white">
+                <h4 class="mb-0 text-center"><i class="bi bi-exclamation-triangle"></i> Error</h4>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">{{ message }}</p>
+                <div class="text-center">
+                    <a href="{% url 'dashboard' %}" class="btn btn-primary">
+                        <i class="bi bi-arrow-left"></i> Back to Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
